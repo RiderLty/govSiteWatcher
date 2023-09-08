@@ -1,0 +1,42 @@
+[
+    {
+        "name": "工作动态",
+        "url": "https://czj.chuzhou.gov.cn/czdt/czdt/index.html",
+        "xpath": "//*[@id='ls_navjz']/ul/li[1]/span/text()",
+        "format": "%Y-%m-%d",
+        "limit": 14,
+        "info": ""
+    },
+    {
+        "name": "县市区动态",
+        "url": "https://czj.chuzhou.gov.cn/czdt/xqdt/index.html",
+        "xpath": "//*[@id='ls_navjz']/ul/li[1]/span/text()",
+        "format": "%Y-%m-%d",
+        "limit": 14,
+        "info": ""
+    },
+    {
+        "name": "涉企政策",
+        "url": "https://czj.chuzhou.gov.cn/czdt/sqzc/index.html",
+        "xpath": "//*[@id='ls_navjz']/ul/li[1]/span/text()",
+        "format": "%Y-%m-%d",
+        "limit": 180,
+        "info": ""
+    },
+    {
+        "name": "通知公告",
+        "url": "https://czj.chuzhou.gov.cn/czdt/tzgg/index.html",
+        "xpath": "//*[@id='ls_navjz']/ul/li[1]/span/text()",
+        "format": "%Y-%m-%d",
+        "limit": 180,
+        "info": ""
+    },
+    {
+        "name": "公共信用",
+        "url": "https://czj.chuzhou.gov.cn/ztzl/ggxy/index.html",
+        "xpath": "//*[@id='ls_navjz']/ul/li[1]/span/text()",
+        "format": "%Y-%m-%d",
+        "limit": 30,
+        "info": ""
+    }
+]
