@@ -70,13 +70,13 @@ def calcDate(siteInfo, onSuccess: callable = None, onError: callable = None):
 
 if __name__ == "__main__":
     siteList = read_xlsx_to_array("data.xlsx")
-    with open("jsData.json", 'w', encoding="UTF-8") as f:
-        f.write(json.dumps(siteList, indent=4, ensure_ascii=False))
+    # with open("jsData.json", 'w', encoding="UTF-8") as f:
+    #     f.write(json.dumps(siteList, indent=4, ensure_ascii=False))
 
-    # for siteInfo in siteList[2:-1]:
-    #     rest = calcDate(siteInfo)
-    #     text = f"{siteInfo[0]}\t{calcDate(siteInfo)}\t{siteInfo[1]}"
-    #     if rest < 1:
-    #         colorPrint("red")(text)
-    #     else:
-    #         print(text)
+    for siteInfo in siteList[2:-1]:
+        rest = calcDate(siteInfo)
+        text = f"{siteInfo[0]}\t{calcDate(siteInfo)}\t{siteInfo[1]}"
+        if rest < 1:
+            colorPrint("red")(text)
+        else:
+            print(text)
