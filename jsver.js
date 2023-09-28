@@ -54,12 +54,6 @@ const getLatestNRGL = async (columnId, parentId) => {
 })()
 
 
-
-
-
-
-
-
 [
     2667882,
     8550430,
@@ -95,3 +89,19 @@ dataPostFetch(
     "siteId=2653861&organId=2681665&catId=&type=PUBLIC_ANNUAL_REPORT&key=&startDate=&endDate=&isPublish=1&pageIndex=0&pageSize=20&sortField=&sortOrder="
 ).then(console.log)
 
+
+
+
+
+
+
+
+    //获取oa人员
+    (async () => {
+        const dataGetFetch = async (url) => await fetch(url).then(resp => resp.json())
+        const ksList = await dataGetFetch("http://59.203.54.120:8081/system/person/getPersonTree4UnitManager?dataFlag=1&parentId=100028430&_=1695860634845")
+        const resultRaw = await Promise.all(ksList.map(async item => [item, await dataGetFetch(`http://59.203.54.120:8081/system/person/getPersonTree4UnitManager?dataFlag=1&parentId=${item.id}&_=${new Date().getTime()}`)]))
+        const resultRemap = resultRaw.map(([ks, personList]) => [ks.name, personList.map(person => `${person.name}_${person.id}`)])
+        const output = Object.fromEntries(resultRemap)
+        console.log(output)
+    })()
