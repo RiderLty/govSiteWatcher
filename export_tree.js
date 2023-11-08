@@ -19,16 +19,36 @@ const dfsVisit = async (node) => {
     }
 
     const nodeName = (node.querySelector("a > span.node_name")).innerText
-    console.log(nodeName)
+    // console.log(nodeName)
 
     const sonList = await Promise.all([...listChildren(node)].map(async son => await dfsVisit(son)));
     return sonList.length === 0 ? nodeName : { [nodeName]: sonList }
 }
 
+
+const linePrint = (obj, head) => {
+    if (typeof obj === typeof "str") {
+        const path = [...head, obj]
+        // console.log( path.join(" > ")  )
+        console.log(  obj )
+
+
+    } else {
+        for (let key in obj) {
+            // console.log("#".repeat(head.length+1), key)
+            for (let son of obj[key]) {
+                linePrint(son, [...head, key])
+            }
+        }
+    }
+}
+
 const dfs = async () => {
     const root = document.querySelectorAll("li.level0")
     for (let elem of root) {
-        console.log(JSON.stringify(await dfsVisit(elem), null, "--"))
+        const res = await dfsVisit(elem)
+        linePrint(res, [])
+        // console.log(JSON.stringify(res, null, "--"))
     }
 }
 dfs()

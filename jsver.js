@@ -666,8 +666,40 @@ const getLatestNRGL = async (columnId, parentId) => {
 }
 
 
+const expand = async () => {
+    const sleep = async (s) => {
+        return new Promise(resolve => setTimeout(resolve, s * 1000));
+    }
+    const listChildren = (root) => {//root为li 且class为levelX X是数字
+        const level = Number(root.className.slice(5))
+        return root.querySelectorAll(`li.level${level + 1}`)
+    }
+    const dfsVisit = async (node) => {
+        const span = node.querySelector("span")
+        if (span.className.indexOf("docu") === -1 && span.className.indexOf("open") === -1) {
+            span.click()
+            while (listChildren(node).length === 0) {
+                await sleep(0.05)
+            }
+        }
+        await Promise.all([...listChildren(node)].map(async son => await dfsVisit(son)));
+    }
+
+    const dfs = async () => {
+        const root = document.querySelectorAll("li.level0")
+        for (let elem of root) {
+            await dfsVisit(elem)
+        }
+    }
+    dfs()
+}
+
+
+
+
 
 (async function () {
+    expand()
     for (item of jsData) {
         if (typeof item[2] === "number") {//更新间隔是数字
             if (item[6] === window.location.host) {
@@ -676,7 +708,7 @@ const getLatestNRGL = async (columnId, parentId) => {
                     [title, date] = await getLatestNRGL(item[3], item[4]);
                 } else if (item[5] === "政务公开") {
                     [title, date] = await getLatestZWGK(item[3]);
-                }else if (item[5] === "政府办") {
+                } else if (item[5] === "政府办") {
                     [title, date] = await getLatestZFB(item[3]);
                 }
                 const distance = Number.parseInt((new Date() - new Date(date)) / 86400000)
@@ -684,9 +716,9 @@ const getLatestNRGL = async (columnId, parentId) => {
                 const infoText = `${item[0]}\n${item[1]}\n${title}\n${date}\n距今${distance}天，剩余${daysRemain}天\n========================================`
                 if (daysRemain <= 0) {
                     console.error(infoText)
-                } else if (daysRemain <= 2){
+                } else if (daysRemain <= 2) {
                     console.warn(infoText)
-                }else{
+                } else {
                     console.log(infoText)
                 }
             }
