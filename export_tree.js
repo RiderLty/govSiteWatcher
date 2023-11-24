@@ -19,10 +19,10 @@ const dfsVisit = async (node) => {
     }
 
     const nodeName = (node.querySelector("a > span.node_name")).innerText
-    // console.log(nodeName)
-
+    const uid = node.querySelector("a").title
+    const display = nodeName + "\t" + uid
     const sonList = await Promise.all([...listChildren(node)].map(async son => await dfsVisit(son)));
-    return sonList.length === 0 ? nodeName : { [nodeName]: sonList }
+    return sonList.length === 0 ? display : { [display]: sonList }
 }
 
 
