@@ -90,7 +90,13 @@ const process = async (item) => {
 // console.log()
 
 
-const printResult = (info, distance, daysRemain) => {
+const printResult = (info, title,distance, daysRemain) => {
+    const infoText = [
+        typeof info === typeof "" ? info : `${info["栏目名称"]}\n${info["完整地址"]}\n${info["详细说明"] || ""}`,
+        title,
+        `距今${distance}天\t剩余${daysRemain}天`,
+        "---------------------------------------",
+    ].join("\n")
     if (daysRemain <= 0) {
         console.error(infoText)
     } else if (daysRemain <= 2) {
@@ -104,8 +110,15 @@ const printResult = (info, distance, daysRemain) => {
 const calcResult = (result) => {
     const dateMap = {}
     const limitMap = {}
+
     for (let [item, title, date] of result) {
-        if (String(item["更新要求"]).indexOf("@") !== -1) {
+        if (item === null) {
+
+        }
+    }
+
+    for (let [item, title, date] of result) {
+        if (item && String(item["更新要求"]).indexOf("@") !== -1) {
             const key = item["更新要求"].split("@")[0]
             limitMap[key] = Number(item["更新要求"].split("@")[1])
             dateMap[key] = dateMap[key] ? (dateMap[key] > new Date(date) ? dateMap[key] : new Date(date)) : new Date(date)
@@ -114,29 +127,32 @@ const calcResult = (result) => {
     for (let key of Object.keys(dateMap)) {
         const distance = Number.parseInt((new Date() - dateMap[key]) / 86400000)
         const daysRemain = limitMap[key] - distance
-        console.log(`${key}\n距今${distance}天\t剩余${daysRemain}天\n===================================`)
+        printResult(key,"标题略", distance, daysRemain)
     }
 
     //计算一般类型
     for (let [item, title, date] of result) {
-        if (typeof item["更新要求"] === typeof 0) {
+        if (item && typeof item["更新要求"] === typeof 0) {
             const distance = Number.parseInt((new Date() - new Date(date)) / 86400000)
             const daysRemain = item["更新要求"] - distance
-            console.log(`${item["栏目名称"]}\n距今${distance}天\t剩余${daysRemain}天\n===================================`)
+            // console.log(`${item["栏目名称"]}\n距今${distance}天\t剩余${daysRemain}天\n===================================`)
+            printResult(item, title,distance, daysRemain)
         }
     }
 
     //
     for (let [item, title, date] of result) {
-        if (item["更新要求"] === "每月初") {
+        if (item && item["更新要求"] === "每月初") {
             const distance = Number.parseInt((new Date() - new Date(date)) / 86400000)
             const daysRemain = 30 - distance
-            console.log(`${item["栏目名称"]}\n距今${distance}天\t剩余${daysRemain}天\n===================================`)
+            // console.log(`${item["栏目名称"]}\n距今${distance}天\t剩余${daysRemain}天\n===================================`)
+            printResult(item, title,distance, daysRemain)
         }
-        if (item["更新要求"] === "每月底") {
+        if (item && item["更新要求"] === "每月底") {
             const distance = Number.parseInt((new Date() - new Date(date)) / 86400000)
             const daysRemain = 30 - distance
-            console.log(`${item["栏目名称"]}\n距今${distance}天\t剩余${daysRemain}天\n===================================`)
+            // console.log(`${item["栏目名称"]}\n距今${distance}天\t剩余${daysRemain}天\n===================================`)
+            printResult(item, title,distance, daysRemain)
         }
     }
 }
@@ -150,7 +166,7 @@ const handelLocal = async (jsData) => {
             result.push(await process(item))
         }
     }
-    console.log(result)
+    // console.log(result)
     calcResult(result)
 }
 
@@ -171,11 +187,11 @@ const handelLocal = async (jsData) => {
             const workbook = XLSX.read(data, { type: 'array' });
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const jsData = XLSX.utils.sheet_to_json(worksheet)
-            console.log(jsData);
+            console.log(`成功读取了${jsData.length}个数据`);
             handelLocal(jsData)
         },
         onerror: function (err) {
-            console.log("load failed!", error);
+            console.log("读取本地表格失败!", error);
         }
     });
 
