@@ -90,7 +90,7 @@ const process = async (item) => {
 // console.log()
 
 
-const printResult = (info, title,distance, daysRemain) => {
+const printResult = (info, title, distance, daysRemain) => {
     const infoText = [
         typeof info === typeof "" ? info : `${info["栏目名称"]}\n${info["完整地址"]}\n${info["详细说明"] || ""}`,
         title,
@@ -127,7 +127,7 @@ const calcResult = (result) => {
     for (let key of Object.keys(dateMap)) {
         const distance = Number.parseInt((new Date() - dateMap[key]) / 86400000)
         const daysRemain = limitMap[key] - distance
-        printResult(key,"标题略", distance, daysRemain)
+        printResult(key, "标题略", distance, daysRemain)
     }
 
     //计算一般类型
@@ -136,7 +136,7 @@ const calcResult = (result) => {
             const distance = Number.parseInt((new Date() - new Date(date)) / 86400000)
             const daysRemain = item["更新要求"] - distance
             // console.log(`${item["栏目名称"]}\n距今${distance}天\t剩余${daysRemain}天\n===================================`)
-            printResult(item, title,distance, daysRemain)
+            printResult(item, title, distance, daysRemain)
         }
     }
 
@@ -146,13 +146,13 @@ const calcResult = (result) => {
             const distance = Number.parseInt((new Date() - new Date(date)) / 86400000)
             const daysRemain = 30 - distance
             // console.log(`${item["栏目名称"]}\n距今${distance}天\t剩余${daysRemain}天\n===================================`)
-            printResult(item, title,distance, daysRemain)
+            printResult(item, title, distance, daysRemain)
         }
         if (item && item["更新要求"] === "每月底") {
             const distance = Number.parseInt((new Date() - new Date(date)) / 86400000)
             const daysRemain = 30 - distance
             // console.log(`${item["栏目名称"]}\n距今${distance}天\t剩余${daysRemain}天\n===================================`)
-            printResult(item, title,distance, daysRemain)
+            printResult(item, title, distance, daysRemain)
         }
     }
 }
@@ -170,11 +170,68 @@ const handelLocal = async (jsData) => {
     calcResult(result)
 }
 
+const expand = async () => {
+    const sleep = async (s) => {
+        return new Promise(resolve => setTimeout(resolve, s * 1000));
+    }
+    const listChildren = (root) => {//root为li 且class为levelX X是数字
+        const level = Number(root.className.slice(5))
+        return root.querySelectorAll(`li.level${level + 1}`)
+    }
+    const dfsVisit = async (node) => {
+        const span = node.querySelector("span")
+        if (span.className.indexOf("docu") === -1 && span.className.indexOf("open") === -1) {
+            span.click()
+            while (listChildren(node).length === 0) {
+                await sleep(0.05)
+            }
+        }
+        await Promise.all([...listChildren(node)].map(async son => await dfsVisit(son)));
+    }
+
+    const dfs = async () => {
+        const root = document.querySelectorAll("li.level0")
+        for (let elem of root) {
+            await dfsVisit(elem)
+        }
+    }
+    dfs()
+}
+
+const waitAndClick = async (path, interval) => {
+    return new Promise((resolve, reject) => {
+        const intervalId = setInterval(() => {
+            const element = document.querySelector(path);
+            if (element) {
+                element.click();
+                console.log("path:", path, "clicked!")
+                clearInterval(intervalId);
+                resolve();
+            }
+        }, interval);
+    });
+};
+
+const expand_wzht = async () => {
+    if (window.location.host !== '59.203.54.81:8012') return
+    await waitAndClick("#sidebar_first_ul > li:nth-child(2)", 100)
+    await waitAndClick("#content_tree_1_switch", 100)
+    await expand()
+}
+const expand_zwgk = async () => {
+    if (window.location.host !== '59.203.54.81:8008') return
+    await waitAndClick("#sidebar_first_ul > li:nth-child(2)", 100)
+    await waitAndClick("#sidebar_second_ul > li:nth-child(3) > a", 100)
+    await waitAndClick("#sidebar_second_ul > li.nav-item.second-menu-item.menu_484570.open > ul > li > a", 100)
+    await waitAndClick("#organ_catalog_tree_2_span", 100)
+    await expand()
+}
 
 
 (function () {
     console.log("running!")
-
+    expand_wzht()
+    expand_zwgk()
     GM_xmlhttpRequest({
         method: "GET",
         url: "file:///C:/Users/lty/Documents/GitHub/govSiteWatcher/网站后台更新指南.xlsx",
@@ -194,9 +251,4 @@ const handelLocal = async (jsData) => {
             console.log("读取本地表格失败!", error);
         }
     });
-
-
-
-
-
 })();
