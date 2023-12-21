@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         读取本地XLSX文件并转换为二维数组
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      1.1
 // @description  读取本地XLSX文件并将表格中第一个工作簿转换为二维数组，然后打印在控制台
 // @author       You
 // @match        https://59.203.54.81:8012/*
@@ -10,6 +10,86 @@
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
+
+//export tree=================================
+const sleep = async (s) => new Promise(resolve => setTimeout(resolve, s * 1000));
+
+const listChildren = (root) => {//root为li 且class为levelX X是数字
+    const level = Number(root.className.slice(5))
+    return root.querySelectorAll(`li.level${level + 1}`)
+}
+
+const dfsVisit = async (node) => {
+    const span = node.querySelector("span")
+
+    if (span.className.indexOf("docu") === -1 && span.className.indexOf("open") === -1) {
+        span.click()
+        let count = 0
+        while (listChildren(node).length === 0 && count <= 10) {//1秒超时 空栏目
+            await sleep(0.1)
+            count += 1
+        }
+    }
+
+    const nodeName = (node.querySelector("a > span.node_name")).innerText
+    const uid = node.querySelector("a").title.match(/\d+/g)[0]
+    const display = `${nodeName}][ID:${uid}`
+    const sonList = await Promise.all([...listChildren(node)].map(async son => await dfsVisit(son)));
+    return sonList.length === 0 ? display : { [display]: sonList }
+}
+
+const linePrint = (obj, head) => {
+    if (typeof obj === typeof "str") {
+        return [[...head, obj]]
+    } else {
+        return Object.keys(obj).flatMap(key => obj[key].flatMap(son => linePrint(son, [...head, key])));
+    }
+}
+
+const dfs = async () => {
+    const root = document.querySelectorAll("li.level0")
+    const elemFrost = await Promise.all([...root].map(elem => dfsVisit(elem)))
+    const listVer = elemFrost.map(tree => linePrint(tree, [])).flat()
+    return listVer
+}
+
+//==================================================================================
+const waitAndClick = async (path, interval) => {
+    return new Promise((resolve, reject) => {
+        const intervalId = setInterval(() => {
+            const element = document.querySelector(path);
+            if (element) {
+                element.click();
+                console.log("path:", path, "clicked!")
+                clearInterval(intervalId);
+                resolve();
+            }
+        }, interval);
+    });
+};
+
+
+const readLocalExcel = async (url) => {
+    return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: url,
+            responseType: "arraybuffer",
+            onload: function (response) {
+                const data = new Uint8Array(response.response)
+                const workbook = XLSX.read(data, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsData = XLSX.utils.sheet_to_json(worksheet)
+                console.log(`成功读取了${jsData.length}个数据`);
+                resolve(jsData)
+            },
+            onerror: function (err) {
+                console.log("读取本地表格失败!", err);
+                reject(err)
+            }
+        });
+    })
+}
 
 const dataPostFetch = async (url, body) => {
     const resp = await fetch(url, {
@@ -43,45 +123,12 @@ const getLatestZWGK = async (catId) => {//财政局政务公开
     )
 }
 
-const getLatestNRGL = async (columnId,) => {//财政局网站
+const getLatestNRGL = async (columnId,) => {//财政局门户网站
     return await dataPostFetch(
         `https://59.203.54.81:8012/content/getPage?IsAjax=1&dataType=JSON&_=${Math.random()}`,
         `pageIndex=0&pageSize=10&dataFlag=1&columnId=${columnId}&title=&conditionMap%5BisPublish%5D=1&startTime=&endTime=&isSelf=0&pagesize=10&condition=isPublish&status=1&isReferNews=`
     )
 }
-
-
-const process = async (item) => {
-    try {
-        if (item["栏目类型"] === "财政局网站") {
-            return [item, ...await getLatestNRGL(item["唯一ID"])]
-        } else if (item["栏目类型"] === "市政府网站") {
-            return [item, ...await getLatestZFB(item["唯一ID"])]
-        } else if (item["栏目类型"] === "财政局政务公开") {
-            return [item, ...await getLatestZWGK(item["唯一ID"])]
-        }
-        // if (title && date) {
-        //     const distance = Number.parseInt((new Date() - new Date(date)) / 86400000)
-        //     const daysRemain = item["更新要求"] - distance
-        //     const infoText = `${item["栏目名称"]}\n${title}\n${date}\n距今${distance}天，剩余${daysRemain}天\n========================================`
-        //     if (daysRemain <= 0) {
-        //         console.error(infoText)
-        //     } else if (daysRemain <= 2) {
-        //         console.warn(infoText)
-        //     } else {
-        //         console.log(infoText)
-        //     }
-        // }
-    } catch (err) {
-        return [null, item, err]
-    }
-
-}
-
-
-
-// console.log()
-
 
 const printResult = (info, title, distance, daysRemain) => {
     const infoText = [
@@ -98,7 +145,6 @@ const printResult = (info, title, distance, daysRemain) => {
         console.log(infoText)
     }
 }
-
 
 const calcResult = (result) => {
     const dateMap = {}
@@ -150,105 +196,63 @@ const calcResult = (result) => {
     }
 }
 
-
-
-const handelLocal = async (jsData) => {
-    const result = []
-    for (item of jsData) {
-        if (item["更新要求"] !== -1 && item["host"] === window.location.host) {
-            result.push(await process(item))
-        }
-    }
-    // console.log(result)
-    calcResult(result)
-}
-
-const expand = async () => {
-    const sleep = async (s) => {
-        return new Promise(resolve => setTimeout(resolve, s * 1000));
-    }
-    const listChildren = (root) => {//root为li 且class为levelX X是数字
-        const level = Number(root.className.slice(5))
-        return root.querySelectorAll(`li.level${level + 1}`)
-    }
-    const dfsVisit = async (node) => {
-        const span = node.querySelector("span")
-        if (span.className.indexOf("docu") === -1 && span.className.indexOf("open") === -1) {
-            span.click()
-            while (listChildren(node).length === 0) {
-                await sleep(0.05)
-            }
-        }
-        await Promise.all([...listChildren(node)].map(async son => await dfsVisit(son)));
-    }
-
-    const dfs = async () => {
-        const root = document.querySelectorAll("li.level0")
-        for (let elem of root) {
-            await dfsVisit(elem)
-        }
-    }
-    dfs()
-}
-
-const waitAndClick = async (path, interval) => {
-    return new Promise((resolve, reject) => {
-        const intervalId = setInterval(() => {
-            const element = document.querySelector(path);
-            if (element) {
-                element.click();
-                console.log("path:", path, "clicked!")
-                clearInterval(intervalId);
-                resolve();
-            }
-        }, interval);
+let lock = false
+const mainFunction = async () => {
+    const excelList = await readLocalExcel("file:///C:/Users/lty/Documents/GitHub/govSiteWatcher/网站后台更新指南.xlsx")
+    const excelPathMap = {}
+    excelList.forEach(element => {
+        excelPathMap[element["完整地址"]] = element
     });
-};
-
-const expand_wzht = async () => {
-    if (window.location.host !== '59.203.54.81:8012') return
-    await waitAndClick("#sidebar_first_ul > li:nth-child(2)", 100)
-    await waitAndClick("#content_tree_1_switch", 100)
-    await expand()
-}
-const expand_zwgk = async () => {
-    if (window.location.host !== '59.203.54.81:8008') return
-    await waitAndClick("#sidebar_first_ul > li:nth-child(2)", 100)
-    await waitAndClick("#sidebar_second_ul > li:nth-child(3) > a", 100)
-    await waitAndClick("#sidebar_second_ul > li.nav-item.second-menu-item.menu_484570.open > ul > li > a", 100)
-    await waitAndClick("#organ_catalog_tree_2_span", 100)
-    await expand()
-}
-
-
-
-
-const readLocalExcel = async (url) => {
-    return new Promise((resolve, reject) => {
-        GM_xmlhttpRequest({
-            method: "GET",
-            url: url,
-            responseType: "arraybuffer",
-            onload: function (response) {
-                const data = new Uint8Array(response.response)
-                const workbook = XLSX.read(data, { type: 'array' });
-                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsData = XLSX.utils.sheet_to_json(worksheet)
-                console.log(`成功读取了${jsData.length}个数据`);
-                resolve(jsData)
-            },
-            onerror: function (err) {
-                console.log("读取本地表格失败!", err);
-                reject(err)
+    console.log(excelPathMap)
+    if (lock) {
+        console.log("已在运行中")
+        return
+    }
+    lock = true
+    const lmList = await dfs()
+    const result = []
+    for (let lm of lmList) {
+        try {
+            const [name, id] = lm[lm.length - 1].split("][ID:")
+            const head = lm[0].split("][ID:")[0]
+            const path = lm.map(name => name.split("][ID:")[0]).join(" > ")
+            if (excelPathMap[path]) {
+                if (excelPathMap[path]["更新要求"] === -1) {
+                    continue
+                } else {
+                    let fetchResult = null
+                    if (head === "滁州市人民政府办公室") {//市政府网站
+                        fetchResult = await getLatestZFB(id)
+                    } else if (head === "市直部门") {//财政局政务公开
+                        fetchResult = await getLatestZWGK(id)
+                    } else {//财政局门户网站
+                        fetchResult = await getLatestNRGL(id)
+                    }
+                    console.log(fetchResult)
+                    result.push([excelPathMap[path] , ...fetchResult])
+                }
+            } else {
+                console.log("miss!", name, path)
+                continue
             }
-        });
-    })
+        } catch (err) {
+            console.log(err)
+        }
+    }
+    calcResult(result)
+    lock = false
 }
 
 
-(async function () {
-    console.log("running!")
-    expand_wzht()
-    expand_zwgk()
-    const jsData = await readLocalExcel("file:///C:/Users/lty/Documents/GitHub/govSiteWatcher/网站后台更新指南.xlsx")
-})();
+(async () => {
+    const button = document.createElement("button");
+    button.textContent = "读取";
+    button.style.width = "50px";
+    button.style.height = "50px";
+    button.style.position = "absolute";
+    button.style.bottom = "0";
+    button.style.left = "0";
+    button.onclick = mainFunction
+    button.style.zIndex = 999
+    document.body.appendChild(button);
+})()
